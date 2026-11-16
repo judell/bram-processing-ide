@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """Save-and-push helper for the Processing IDE editor.
 
-Makes sketches/<name>/sketch.js the single copy of each sketch:
+Makes sketches/<name>.js the single copy of each sketch:
 
-  POST /save    {"name": "...", "code": "..."}  writes sketches/<name>/sketch.js
-  GET  /events  Server-Sent Events: {"name", "code"} whenever a sketch.js
-                changes on disk from outside this server (e.g. the agent)
-  GET  /health  "ok"
+  POST /save      {"name": "...", "code": "..."}  writes an existing
+                  sketches/<name>.js (new sketches come from the agent)
+  GET  /sketches  sorted list of sketch names
+  GET  /events    Server-Sent Events:
+                    {"type": "code", "name", "code"} when a sketch changes on
+                      disk from outside this server (e.g. the agent)
+                    {"type": "list", "names": [...]} when a sketch is added
+                      or removed
+  GET  /health    "ok"
 
 Standard library only. Binds 127.0.0.1. Accepts browser requests only from
 loopback origins (http://127.0.0.1:* or http://localhost:*).
@@ -32,7 +37,7 @@ NAME_RE = re.compile(r"^[a-z0-9_-]+$")
 ORIGIN_RE = re.compile(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$")
 
 lock = threading.Lock()
-mtimes = {}        # name -> last seen mtime_ns of sketch.js
+mtimes = {}        # name -> last seen mtime_ns of sketches/<name>.js
 last_written = {}  # name -> code this server last wrote (not echoed back)
 clients = set()    # one queue.Queue per open /events stream
 
@@ -43,15 +48,17 @@ def log(event, **fields):
 
 
 def sketch_file(name):
-    return SKETCHES / name / "sketch.js"
+    return SKETCHES / f"{name}.js"
 
 
 def scan():
-    """Return {name: mtime_ns} for every sketches/*/sketch.js."""
+    """Return {name: mtime_ns} for every sketches/<name>.js."""
     found = {}
-    for path in SKETCHES.glob("*/sketch.js"):
+    for path in SKETCHES.glob("*.js"):
+        if not NAME_RE.match(path.stem):
+            continue
         try:
-            found[path.parent.name] = path.stat().st_mtime_ns
+            found[path.stem] = path.stat().st_mtime_ns
         except FileNotFoundError:
             pass
     return found
@@ -70,7 +77,17 @@ def watch():
         mtimes.update(scan())
     while True:
         time.sleep(POLL_SECONDS)
-        for name, mtime in scan().items():
+        current = scan()
+        with lock:
+            removed = set(mtimes) - set(current)
+            added = set(current) - set(mtimes)
+            for name in removed:
+                del mtimes[name]
+        if added or removed:
+            names = sorted(current)
+            log("list", names=",".join(names), clients=len(clients))
+            broadcast({"type": "list", "names": names})
+        for name, mtime in current.items():
             with lock:
                 if mtimes.get(name) == mtime:
                     continue
@@ -85,7 +102,7 @@ def watch():
             if own:
                 continue
             log("push", name=name, bytes=len(code.encode("utf-8")), clients=len(clients))
-            broadcast({"name": name, "code": code})
+            broadcast({"type": "code", "name": name, "code": code})
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -123,6 +140,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, '{"error":"origin"}')
         if self.path == "/health":
             return self.reply(200, "ok", "text/plain")
+        if self.path == "/sketches":
+            return self.reply(200, json.dumps(sorted(scan())))
         if self.path == "/events":
             return self.events()
         self.reply(404, '{"error":"not found"}')
@@ -165,12 +184,12 @@ class Handler(BaseHTTPRequestHandler):
             name, code = body.get("name"), body.get("code")
         except (ValueError, AttributeError):
             return self.reply(400, '{"error":"bad json"}')
-        if not isinstance(name, str) or not NAME_RE.match(name) or not (SKETCHES / name).is_dir():
+        if not isinstance(name, str) or not NAME_RE.match(name) or not sketch_file(name).is_file():
             return self.reply(400, '{"error":"bad name"}')
         if not isinstance(code, str):
             return self.reply(400, '{"error":"bad code"}')
         path = sketch_file(name)
-        tmp = path.with_suffix(".js.tmp")
+        tmp = SKETCHES / f".{name}.js.tmp"
         with lock:
             last_written[name] = code
             tmp.write_text(code, encoding="utf-8")

@@ -1,0 +1,1 @@
+I'd like a new sketch for Explore Processing. Ask me what it should show, suggest a short name, then propose it as a Worklist item that adds sketches/<name>.js (instance-mode p5, like sketches/intro.js). Treat my answer as the new sketch's description, even if it arrives as feedback on another Worklist item.

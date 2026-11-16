@@ -10,14 +10,20 @@ Open it from Bram's server in a browser: the sketch runs on the left, its
 - `Main.xmlui` is the IDE: header, sketch frame, editor, error list.
 - `vendor/p5.js` is p5.js 2.4.0, unminified so the Friendly Error System
   is active. Its checksum is in `vendor/p5.js.sha256`.
-- `sketches/<name>/` holds one sketch: `sketch.js`, plus an `index.html`
-  that runs it on its own.
+- `sketches/<name>.js` is one sketch (instance-mode p5). The page opens
+  on `intro`; the menu in the header lists every sketch.
+
+## Making a sketch
+
+Ask in Bram ("make a sketch of falling snow"). The agent proposes it as a
+Worklist item; once approved, `sketches/<name>.js` appears and shows up in
+the menu without a reload.
 
 ## The sketch helper
 
-`sketches/<name>/sketch.js` is the single copy of each sketch. Start the
-helper from the repo root so editor edits save to it and outside changes
-(the agent's) appear in the editor:
+`sketches/<name>.js` is the single copy of each sketch. Start the helper
+from the repo root so editor edits save to it, outside changes (the
+agent's) appear in the editor, and the menu learns about new sketches:
 
 ```
 python3 tools/sketch_server.py

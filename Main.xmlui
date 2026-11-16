@@ -1,8 +1,29 @@
-<App name="Processing IDE" scrollWholePage="false" var.runDoc="" var.errors="{[]}" var.code="">
+<App
+  name="Processing IDE"
+  scrollWholePage="false"
+  var.runDoc=""
+  var.errors="{[]}"
+  var.code=""
+  var.current="intro"
+  var.loadSeq="{0}">
   <AppHeader>
     <property name="titleTemplate">
       <HStack gap="$space-4" verticalAlignment="center">
         <Text variant="strong" value="Explore Processing" />
+        <Select
+          width="12rem"
+          initialValue="{current}"
+          onDidChange="(name) => { if (name && name !== current) { current = name; loadSeq++; } }">
+          <Items data="{sketchList.value}">
+            <Option value="{$item}" label="{$item}" />
+          </Items>
+        </Select>
+        <Button
+          label="New sketch"
+          variant="outlined"
+          size="sm"
+          tooltip="Opens Bram with a request for a new sketch; press Enter there to send it"
+          onClick="stageNewSketch()" />
         <HStack when="{errors.length > 0}" cursor="pointer" onClick="errorDialog.open()">
           <Text
             fontSize="$fontSize-sm"
@@ -26,14 +47,15 @@
   </ModalDialog>
   <DataSource
     id="source"
-    url="sketches/hello/sketch.js"
+    url="sketches/{current}.js?v={loadSeq}"
     dataType="text"
-    onLoaded="(text) => { const c = adoptSketch('hello', text); editor.setValue(c); code = c; runDoc = buildDoc(c); }" />
+    onLoaded="(text) => { noteSketch(current, text); editor.setValue(text); code = text; errors = []; runDoc = buildDoc(text); }" />
   <PushSource id="syncStatus" initial="" subscribe="{window.subscribeSyncStatus}" />
-  <PushSource id="pushed" subscribe="{subscribeSketch('hello')}" />
+  <PushSource id="sketchList" initial="{['intro']}" subscribe="{window.subscribeSketchList}" />
+  <PushSource id="pushed" subscribe="{window.subscribeSketchCode}" />
   <ChangeListener
     listenTo="{pushed.value}"
-    onDidChange="() => { if (pushed.value) editor.setValue(pushed.value.code); }" />
+    onDidChange="() => { if (pushed.value && pushed.value.name === current) editor.setValue(pushed.value.code); }" />
   <MessageListener
     onMessageReceived="(msg) => { if (msg && msg.source === 'sketch') errors = errors.concat([msg]); }" />
   <HSplitter height="100%">
@@ -58,7 +80,7 @@
             minRows="40"
             spellCheck="false"
             autoCorrect="false"
-            onDidChange="(value) => { code = value; saveSketch('hello', value); errors = []; runDoc = buildDoc(value); }" />
+            onDidChange="(value) => { code = value; saveSketch(current, value); errors = []; runDoc = buildDoc(value); }" />
         </Theme>
       </HStack>
     </VStack>

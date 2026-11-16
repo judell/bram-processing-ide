@@ -5,15 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Processing IDE</title>
   <script>
-    // Sync with tools/sketch_server.py, which makes sketches/<name>/sketch.js
-    // the single copy: the editor saves to it, and outside changes (the
-    // agent's) are pushed back over Server-Sent Events.
+    // Sync with tools/sketch_server.py, which makes sketches/<name>.js the
+    // single copy of each sketch: the editor saves to it, outside changes
+    // (the agent's) are pushed back over Server-Sent Events, and so is the
+    // list of sketches when one is added or removed.
     const SKETCH_SERVER = "http://127.0.0.1:55399";
     const diskCode = {};      // name -> code last known to be on disk
     const saveTimers = {};
     let syncStatus = "";  // empty when all is well; set only for "helper offline"
     const statusListeners = new Set();
-    const sketchListeners = {};  // name -> Set of emit functions
+    const codeListeners = new Set();
+    const listListeners = new Set();
+    let sketchNames = ["intro"];
     let eventSource = null;
     let pushSeq = 0;
 
@@ -33,26 +36,42 @@
       eventSource.onmessage = function (e) {
         let d;
         try { d = JSON.parse(e.data); } catch (err) { return; }
-        diskCode[d.name] = d.code;
-        pushSeq += 1;
-        (sketchListeners[d.name] || new Set()).forEach(function (emit) {
-          emit({ code: d.code, seq: pushSeq });
-        });
+        if (d.type === "list") {
+          setSketchNames(d.names);
+        } else if (d.type === "code") {
+          diskCode[d.name] = d.code;
+          pushSeq += 1;
+          codeListeners.forEach(function (emit) {
+            emit({ name: d.name, code: d.code, seq: pushSeq });
+          });
+        }
       };
     }
 
-    // PushSource subscribe functions. Cached so every render gets the same
-    // function and the PushSource doesn't resubscribe.
-    const sketchSubscribers = {};
-    function subscribeSketch(name) {
-      if (!sketchSubscribers[name]) {
-        sketchSubscribers[name] = function (emit) {
-          ensureEventSource();
-          (sketchListeners[name] = sketchListeners[name] || new Set()).add(emit);
-          return function () { sketchListeners[name].delete(emit); };
-        };
-      }
-      return sketchSubscribers[name];
+    function setSketchNames(names) {
+      if (!Array.isArray(names) || names.length === 0) return;
+      sketchNames = names;
+      listListeners.forEach(function (emit) { emit(names); });
+    }
+
+    // PushSource subscribe functions (plain functions, so each render
+    // passes the same one and the PushSource doesn't resubscribe).
+    // Code pushes carry the sketch name; the page keeps the ones for the
+    // sketch it shows.
+    function subscribeSketchCode(emit) {
+      ensureEventSource();
+      codeListeners.add(emit);
+      return function () { codeListeners.delete(emit); };
+    }
+    function subscribeSketchList(emit) {
+      ensureEventSource();
+      listListeners.add(emit);
+      emit(sketchNames);
+      fetch(SKETCH_SERVER + "/sketches")
+        .then(function (r) { return r.json(); })
+        .then(setSketchNames)
+        .catch(function () {});
+      return function () { listListeners.delete(emit); };
     }
     function subscribeSyncStatus(emit) {
       ensureEventSource();
@@ -85,22 +104,24 @@
       }, 400);
     }
 
-    // First load: record the file's code. A leftover localStorage draft
-    // from before the helper existed is saved to the file once, then
-    // removed. Returns the code the editor should show.
-    function adoptSketch(name, fileCode) {
-      diskCode[name] = fileCode;
-      let draft = null;
-      try { draft = localStorage.getItem("sketch:" + name); } catch (e) {}
-      if (draft === null) return fileCode;
-      if (draft === fileCode) {
-        try { localStorage.removeItem("sketch:" + name); } catch (e) {}
-        return fileCode;
+    // "New sketch" button: brings Bram forward with the new-sketch prompt
+    // (prompts/new-sketch.md, declared in .bram.json) in its message box.
+    // Nothing is sent until the user presses Enter there.
+    function stageNewSketch() {
+      if (!window.BramDoorway) {
+        setSyncStatus("New sketch: ask in Bram (doorway unavailable)");
+        return;
       }
-      postSave(name, draft).then(function () {
-        try { localStorage.removeItem("sketch:" + name); } catch (e) {}
-      }).catch(function () {});
-      return draft;
+      window.BramDoorway.stage("new-sketch").catch(function (e) {
+        setSyncStatus("New sketch: ask in Bram (" + ((e && e.reason) || "doorway failed") + ")");
+      });
+    }
+
+    // A sketch was loaded from disk: remember its code so the editor
+    // filling with it isn't saved straight back.
+    function noteSketch(name, fileCode) {
+      diskCode[name] = fileCode;
+      return fileCode;
     }
 
     // "1\n2\n…\nN" for the editor's line-number gutter.
@@ -173,6 +194,7 @@
         '<!-- run ' + runCount + ' -->';
     }
   </script>
+  <script src="/__shell/doorway.js"></script>
   <script src="/__vendor/xmlui-standalone.umd.js"></script>
 </head>
 <body>
