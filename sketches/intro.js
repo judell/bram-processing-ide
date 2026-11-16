@@ -1,15 +1,6 @@
 // Welcome sketch. Click the canvas to hide or show the message.
 const sketch = function (p) {
   let showText = true;
-  const message =
-    "Edit the code on the right; the canvas re-runs as you type. " +
-    "Try it: in the for loop, change i < 5 to i < 15. " +
-    "You'll get 15 circles instead of 5, each one bigger than the last " +
-    "and shifting from blue toward orange.\n\n" +
-    "Pick a sketch from the menu above.\n\n" +
-    "To make a new one, ask in Bram (\"make a sketch of falling snow\"). " +
-    "Approve the Worklist item and it appears in the menu.\n\n" +
-    "Click to hide this.";
 
   p.setup = function () {
     p.createCanvas(p.windowWidth, p.windowHeight);
@@ -34,6 +25,17 @@ const sketch = function (p) {
 
   p.mousePressed = function () { showText = !showText; };
   p.windowResized = function () { p.resizeCanvas(p.windowWidth, p.windowHeight); };
+
+  // The welcome text drawn by draw() above.
+  const message =
+    "Edit the code on the right; the canvas re-runs as you type. " +
+    "Try it: in the for loop, change i < 5 to i < 15. " +
+    "You'll get 15 circles instead of 5, each one bigger than the last " +
+    "and shifting from blue toward orange.\n\n" +
+    "Pick a sketch from the menu above.\n\n" +
+    "To make a new one, ask in Bram (\"make a sketch of falling snow\"). " +
+    "Approve the Worklist item and it appears in the menu.\n\n" +
+    "Click to hide this.";
 };
 
 new p5(sketch);
