@@ -1,0 +1,13 @@
+<App name="Processing IDE" scrollWholePage="false">
+  <DataSource id="source" url="sketches/hello/index.html" dataType="text" />
+  <VSplitter height="100%" initialPrimarySize="440px">
+    <IFrame
+      src="sketches/hello/index.html"
+      title="hello sketch"
+      width="100%"
+      height="100%" />
+    <VStack height="100%" overflowY="auto">
+      <Text variant="mono" value="{source.value}" />
+    </VStack>
+  </VSplitter>
+</App>

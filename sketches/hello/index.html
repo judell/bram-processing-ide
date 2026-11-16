@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>hello</title>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+  <script src="../../vendor/p5.js"></script>
+</head>
+
+<body>
+  <!-- Copied from p5.js preview/index.html at c60c73576; there it imports
+       ../src/app.js, here it uses the vendored p5 2.4.0 build. -->
+  <script>
+    const sketch = function (p) {
+      p.setup = function () {
+        p.createCanvas(400, 400);
+        p.noLoop();
+      };
+
+      p.draw = function () {
+        p.background(220);
+        p.fill(false);
+        p.line(0);
+        p.ellipse(200, 200, 100, 100);
+      };
+    };
+
+    new p5(sketch);
+  </script>
+</body>
+
+</html>
