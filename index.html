@@ -11,7 +11,7 @@
     const SKETCH_SERVER = "http://127.0.0.1:55399";
     const diskCode = {};      // name -> code last known to be on disk
     const saveTimers = {};
-    let syncStatus = "connecting to sketch helper…";
+    let syncStatus = "";  // empty when all is well; set only for "helper offline"
     const statusListeners = new Set();
     const sketchListeners = {};  // name -> Set of emit functions
     let eventSource = null;
@@ -26,7 +26,7 @@
     function ensureEventSource() {
       if (eventSource) return;
       eventSource = new EventSource(SKETCH_SERVER + "/events");
-      eventSource.onopen = function () { setSyncStatus("saving to sketch.js"); };
+      eventSource.onopen = function () { setSyncStatus(""); };
       eventSource.onerror = function () {
         setSyncStatus("sketch helper offline: edits run but aren't saved");
       };
@@ -69,7 +69,7 @@
       }).then(function (r) {
         if (!r.ok) throw new Error("save failed: " + r.status);
         diskCode[name] = code;
-        setSyncStatus("saving to sketch.js");
+        setSyncStatus("");
       });
     }
 

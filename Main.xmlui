@@ -1,9 +1,29 @@
 <App name="Processing IDE" scrollWholePage="false" var.runDoc="" var.errors="{[]}" var.code="">
-  <AppHeader title="Explore Processing">
+  <AppHeader>
+    <property name="titleTemplate">
+      <HStack gap="$space-4" verticalAlignment="center">
+        <Text variant="strong" value="Explore Processing" />
+        <HStack when="{errors.length > 0}" cursor="pointer" onClick="errorDialog.open()">
+          <Text
+            fontSize="$fontSize-sm"
+            color="$color-danger-600"
+            maxWidth="50vw"
+            maxLines="1"
+            overflowMode="ellipsis"
+            tooltip="Click to see the full error"
+            value="{(errors[0].line ? 'line ' + errors[0].line + ': ' : '') + errors[0].message + (errors.length > 1 ? ' (+' + (errors.length - 1) + ' more)' : '')}" />
+        </HStack>
+      </HStack>
+    </property>
     <property name="profileMenuTemplate">
-      <Text fontSize="$fontSize-sm" color="$textColor-secondary" value="{syncStatus.value}" />
+      <Text when="{!!syncStatus.value}" fontSize="$fontSize-sm" color="$textColor-secondary" value="{syncStatus.value}" />
     </property>
   </AppHeader>
+  <ModalDialog id="errorDialog" title="Sketch errors">
+    <Items data="{errors}">
+      <Text preserveLinebreaks="true" value="{($item.line ? 'line ' + $item.line + ': ' : '') + $item.message}" />
+    </Items>
+  </ModalDialog>
   <DataSource
     id="source"
     url="sketches/hello/sketch.js"
@@ -18,37 +38,29 @@
     onMessageReceived="(msg) => { if (msg && msg.source === 'sketch') errors = errors.concat([msg]); }" />
   <HSplitter height="100%">
     <IFrame srcdoc="{runDoc}" title="sketch" width="100%" height="100%" />
-    <VSplitter height="100%" initialPrimarySize="75%">
-      <VStack height="100%" overflowY="auto">
-        <HStack gap="$space-1">
-          <Text
-            preserveLinebreaks="true"
-            textAlign="end"
-            minWidth="2.5em"
-            fontSize="$fontSize-xs"
-            color="$textColor-secondary"
-            lineHeight="1.5em"
-            paddingTop="$space-2"
-            marginTop="1px"
-            value="{lineNumbers(code)}" />
-          <Theme fontSize-TextArea="$fontSize-xs">
-            <TextArea
-              id="editor"
-              width="*"
-              autoSize="true"
-              minRows="20"
-              spellCheck="false"
-              autoCorrect="false"
-              onDidChange="(value) => { code = value; saveSketch('hello', value); errors = []; runDoc = buildDoc(value); }" />
-          </Theme>
-        </HStack>
-      </VStack>
-      <VStack height="100%" overflowY="auto">
-        <Text when="{errors.length === 0}" value="No errors" />
-        <Items data="{errors}">
-          <Text value="{($item.line ? 'line ' + $item.line + ': ' : '') + $item.message}" />
-        </Items>
-      </VStack>
-    </VSplitter>
+    <VStack height="100%" overflowY="auto">
+      <HStack gap="$space-1">
+        <Text
+          preserveLinebreaks="true"
+          textAlign="end"
+          minWidth="2.5em"
+          fontSize="$fontSize-xs"
+          color="$textColor-secondary"
+          lineHeight="1.5em"
+          paddingTop="$space-2"
+          marginTop="1px"
+          value="{lineNumbers(code)}" />
+        <Theme fontSize-TextArea="$fontSize-xs">
+          <TextArea
+            id="editor"
+            width="*"
+            autoSize="true"
+            minRows="40"
+            spellCheck="false"
+            autoCorrect="false"
+            onDidChange="(value) => { code = value; saveSketch('hello', value); errors = []; runDoc = buildDoc(value); }" />
+        </Theme>
+      </HStack>
+    </VStack>
   </HSplitter>
 </App>
