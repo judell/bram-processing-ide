@@ -25,13 +25,13 @@
             preserveLinebreaks="true"
             textAlign="end"
             minWidth="2.5em"
-            fontSize="$fontSize-sm"
+            fontSize="$fontSize-xs"
             color="$textColor-secondary"
             lineHeight="1.5em"
             paddingTop="$space-2"
             marginTop="1px"
             value="{lineNumbers(code)}" />
-          <Theme fontSize-TextArea="$fontSize-sm">
+          <Theme fontSize-TextArea="$fontSize-xs">
             <TextArea
               id="editor"
               width="*"
