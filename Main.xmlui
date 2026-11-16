@@ -27,18 +27,20 @@
             minWidth="2.5em"
             fontSize="$fontSize-sm"
             color="$textColor-secondary"
-            lineHeight="1.5rem"
+            lineHeight="1.5em"
             paddingTop="$space-2"
             marginTop="1px"
             value="{lineNumbers(code)}" />
-          <TextArea
-            id="editor"
-            width="*"
-            autoSize="true"
-            minRows="20"
-            spellCheck="false"
-            autoCorrect="false"
-            onDidChange="(value) => { code = value; saveSketch('hello', value); errors = []; runDoc = buildDoc(value); }" />
+          <Theme fontSize-TextArea="$fontSize-sm">
+            <TextArea
+              id="editor"
+              width="*"
+              autoSize="true"
+              minRows="20"
+              spellCheck="false"
+              autoCorrect="false"
+              onDidChange="(value) => { code = value; saveSketch('hello', value); errors = []; runDoc = buildDoc(value); }" />
+          </Theme>
         </HStack>
       </VStack>
       <VStack height="100%" overflowY="auto">
