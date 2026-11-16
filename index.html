@@ -4,6 +4,27 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Processing IDE</title>
+  <script>
+    // Per-sketch editor drafts, kept in this browser's localStorage.
+    function draftKey(name) { return "sketch:" + name; }
+    function loadDraft(name) {
+      try { return localStorage.getItem(draftKey(name)); } catch (e) { return null; }
+    }
+    function saveDraft(name, code) {
+      try { localStorage.setItem(draftKey(name), code); } catch (e) {}
+    }
+
+    // A minimal page that runs sketch code with the vendored p5, for an
+    // IFrame's srcdoc. "</script" in the code is escaped so it can't end
+    // the script tag early.
+    function buildDoc(code) {
+      const safe = String(code ?? "").replace(/<\/script/gi, "<\\/script");
+      return '<!doctype html><html><head><meta charset="utf-8">' +
+        '<style>body{margin:0;overflow:hidden}</style>' +
+        '<script src="/vendor/p5.js"></' + 'script></head><body>' +
+        '<script>' + safe + '</' + 'script></body></html>';
+    }
+  </script>
   <script src="/__vendor/xmlui-standalone.umd.js"></script>
 </head>
 <body>

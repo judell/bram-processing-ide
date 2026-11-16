@@ -1,13 +1,24 @@
-<App name="Processing IDE" scrollWholePage="false">
-  <DataSource id="source" url="sketches/hello/index.html" dataType="text" />
-  <VSplitter height="100%" initialPrimarySize="440px">
-    <IFrame
-      src="sketches/hello/index.html"
-      title="hello sketch"
-      width="100%"
-      height="100%" />
+<App name="Processing IDE" scrollWholePage="false" var.runDoc="">
+  <AppHeader title="Explore Processing">
+    <property name="profileMenuTemplate">
+      <Button label="Run" onClick="runDoc = buildDoc(editor.value)" />
+    </property>
+  </AppHeader>
+  <DataSource
+    id="source"
+    url="sketches/hello/sketch.js"
+    dataType="text"
+    onLoaded="(code) => { const c = loadDraft('hello') ?? code; editor.setValue(c); runDoc = buildDoc(c); }" />
+  <HSplitter height="100%">
+    <IFrame srcdoc="{runDoc}" title="sketch" width="100%" height="100%" />
     <VStack height="100%" overflowY="auto">
-      <Text variant="mono" value="{source.value}" />
+      <TextArea
+        id="editor"
+        autoSize="true"
+        minRows="20"
+        spellCheck="false"
+        autoCorrect="false"
+        onDidChange="(code) => saveDraft('hello', code)" />
     </VStack>
-  </VSplitter>
+  </HSplitter>
 </App>
