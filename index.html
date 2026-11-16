@@ -5,13 +5,102 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Processing IDE</title>
   <script>
-    // Per-sketch editor drafts, kept in this browser's localStorage.
-    function draftKey(name) { return "sketch:" + name; }
-    function loadDraft(name) {
-      try { return localStorage.getItem(draftKey(name)); } catch (e) { return null; }
+    // Sync with tools/sketch_server.py, which makes sketches/<name>/sketch.js
+    // the single copy: the editor saves to it, and outside changes (the
+    // agent's) are pushed back over Server-Sent Events.
+    const SKETCH_SERVER = "http://127.0.0.1:55399";
+    const diskCode = {};      // name -> code last known to be on disk
+    const saveTimers = {};
+    let syncStatus = "connecting to sketch helper…";
+    const statusListeners = new Set();
+    const sketchListeners = {};  // name -> Set of emit functions
+    let eventSource = null;
+    let pushSeq = 0;
+
+    function setSyncStatus(s) {
+      if (s === syncStatus) return;
+      syncStatus = s;
+      statusListeners.forEach(function (emit) { emit(s); });
     }
-    function saveDraft(name, code) {
-      try { localStorage.setItem(draftKey(name), code); } catch (e) {}
+
+    function ensureEventSource() {
+      if (eventSource) return;
+      eventSource = new EventSource(SKETCH_SERVER + "/events");
+      eventSource.onopen = function () { setSyncStatus("saving to sketch.js"); };
+      eventSource.onerror = function () {
+        setSyncStatus("sketch helper offline: edits run but aren't saved");
+      };
+      eventSource.onmessage = function (e) {
+        let d;
+        try { d = JSON.parse(e.data); } catch (err) { return; }
+        diskCode[d.name] = d.code;
+        pushSeq += 1;
+        (sketchListeners[d.name] || new Set()).forEach(function (emit) {
+          emit({ code: d.code, seq: pushSeq });
+        });
+      };
+    }
+
+    // PushSource subscribe functions. Cached so every render gets the same
+    // function and the PushSource doesn't resubscribe.
+    const sketchSubscribers = {};
+    function subscribeSketch(name) {
+      if (!sketchSubscribers[name]) {
+        sketchSubscribers[name] = function (emit) {
+          ensureEventSource();
+          (sketchListeners[name] = sketchListeners[name] || new Set()).add(emit);
+          return function () { sketchListeners[name].delete(emit); };
+        };
+      }
+      return sketchSubscribers[name];
+    }
+    function subscribeSyncStatus(emit) {
+      ensureEventSource();
+      statusListeners.add(emit);
+      emit(syncStatus);
+      return function () { statusListeners.delete(emit); };
+    }
+
+    function postSave(name, code) {
+      return fetch(SKETCH_SERVER + "/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, code: code }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error("save failed: " + r.status);
+        diskCode[name] = code;
+        setSyncStatus("saving to sketch.js");
+      });
+    }
+
+    // Debounced save from the editor. Skips code that is already on disk,
+    // such as a pushed change landing in the editor.
+    function saveSketch(name, code) {
+      clearTimeout(saveTimers[name]);
+      if (code === diskCode[name]) return;
+      saveTimers[name] = setTimeout(function () {
+        postSave(name, code).catch(function () {
+          setSyncStatus("sketch helper offline: edits run but aren't saved");
+        });
+      }, 400);
+    }
+
+    // First load: record the file's code. A leftover localStorage draft
+    // from before the helper existed is saved to the file once, then
+    // removed. Returns the code the editor should show.
+    function adoptSketch(name, fileCode) {
+      diskCode[name] = fileCode;
+      let draft = null;
+      try { draft = localStorage.getItem("sketch:" + name); } catch (e) {}
+      if (draft === null) return fileCode;
+      if (draft === fileCode) {
+        try { localStorage.removeItem("sketch:" + name); } catch (e) {}
+        return fileCode;
+      }
+      postSave(name, draft).then(function () {
+        try { localStorage.removeItem("sketch:" + name); } catch (e) {}
+      }).catch(function () {});
+      return draft;
     }
 
     // "1\n2\n…\nN" for the editor's line-number gutter.

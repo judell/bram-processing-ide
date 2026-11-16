@@ -1,10 +1,19 @@
 <App name="Processing IDE" scrollWholePage="false" var.runDoc="" var.errors="{[]}" var.code="">
-  <AppHeader title="Explore Processing" />
+  <AppHeader title="Explore Processing">
+    <property name="profileMenuTemplate">
+      <Text fontSize="$fontSize-sm" color="$textColor-secondary" value="{syncStatus.value}" />
+    </property>
+  </AppHeader>
   <DataSource
     id="source"
     url="sketches/hello/sketch.js"
     dataType="text"
-    onLoaded="(code) => { const c = loadDraft('hello') ?? code; editor.setValue(c); code = c; runDoc = buildDoc(c); }" />
+    onLoaded="(text) => { const c = adoptSketch('hello', text); editor.setValue(c); code = c; runDoc = buildDoc(c); }" />
+  <PushSource id="syncStatus" initial="" subscribe="{window.subscribeSyncStatus}" />
+  <PushSource id="pushed" subscribe="{subscribeSketch('hello')}" />
+  <ChangeListener
+    listenTo="{pushed.value}"
+    onDidChange="() => { if (pushed.value) editor.setValue(pushed.value.code); }" />
   <MessageListener
     onMessageReceived="(msg) => { if (msg && msg.source === 'sketch') errors = errors.concat([msg]); }" />
   <HSplitter height="100%">
@@ -29,7 +38,7 @@
             minRows="20"
             spellCheck="false"
             autoCorrect="false"
-            onDidChange="(value) => { code = value; saveDraft('hello', value); errors = []; runDoc = buildDoc(value); }" />
+            onDidChange="(value) => { code = value; saveSketch('hello', value); errors = []; runDoc = buildDoc(value); }" />
         </HStack>
       </VStack>
       <VStack height="100%" overflowY="auto">
