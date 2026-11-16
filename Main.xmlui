@@ -1,24 +1,43 @@
-<App name="Processing IDE" scrollWholePage="false" var.runDoc="">
-  <AppHeader title="Explore Processing">
-    <property name="profileMenuTemplate">
-      <Button label="Run" onClick="runDoc = buildDoc(editor.value)" />
-    </property>
-  </AppHeader>
+<App name="Processing IDE" scrollWholePage="false" var.runDoc="" var.errors="{[]}" var.code="">
+  <AppHeader title="Explore Processing" />
   <DataSource
     id="source"
     url="sketches/hello/sketch.js"
     dataType="text"
-    onLoaded="(code) => { const c = loadDraft('hello') ?? code; editor.setValue(c); runDoc = buildDoc(c); }" />
+    onLoaded="(code) => { const c = loadDraft('hello') ?? code; editor.setValue(c); code = c; runDoc = buildDoc(c); }" />
+  <MessageListener
+    onMessageReceived="(msg) => { if (msg && msg.source === 'sketch') errors = errors.concat([msg]); }" />
   <HSplitter height="100%">
     <IFrame srcdoc="{runDoc}" title="sketch" width="100%" height="100%" />
-    <VStack height="100%" overflowY="auto">
-      <TextArea
-        id="editor"
-        autoSize="true"
-        minRows="20"
-        spellCheck="false"
-        autoCorrect="false"
-        onDidChange="(code) => saveDraft('hello', code)" />
-    </VStack>
+    <VSplitter height="100%" initialPrimarySize="75%">
+      <VStack height="100%" overflowY="auto">
+        <HStack gap="$space-1">
+          <Text
+            preserveLinebreaks="true"
+            textAlign="end"
+            minWidth="2.5em"
+            fontSize="$fontSize-sm"
+            color="$textColor-secondary"
+            lineHeight="1.5rem"
+            paddingTop="$space-2"
+            marginTop="1px"
+            value="{lineNumbers(code)}" />
+          <TextArea
+            id="editor"
+            width="*"
+            autoSize="true"
+            minRows="20"
+            spellCheck="false"
+            autoCorrect="false"
+            onDidChange="(value) => { code = value; saveDraft('hello', value); errors = []; runDoc = buildDoc(value); }" />
+        </HStack>
+      </VStack>
+      <VStack height="100%" overflowY="auto">
+        <Text when="{errors.length === 0}" value="No errors" />
+        <Items data="{errors}">
+          <Text value="{($item.line ? 'line ' + $item.line + ': ' : '') + $item.message}" />
+        </Items>
+      </VStack>
+    </VSplitter>
   </HSplitter>
 </App>

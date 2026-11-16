@@ -14,15 +14,74 @@
       try { localStorage.setItem(draftKey(name), code); } catch (e) {}
     }
 
+    // "1\n2\n…\nN" for the editor's line-number gutter.
+    function lineNumbers(code) {
+      const n = String(code ?? "").split("\n").length;
+      return Array.from({ length: n }, (_, i) => String(i + 1)).join("\n");
+    }
+
+    // Runs inside the sketch frame, before p5: forwards errors, warnings
+    // and p5 Friendly Error System messages to the parent page as
+    // { source: 'sketch', kind, message, line }. Line numbers refer to
+    // the sketch code (see buildDoc). buildDoc inlines this function on
+    // the document's first line, so its body must not use line comments.
+    function sketchErrorCapture() {
+      function lineFrom(stack, skip) {
+        const re = /about:srcdoc:(\d+)/g;
+        const s = String(stack || "");
+        let m, n = 0;
+        while ((m = re.exec(s))) {
+          if (n++ >= (skip || 0)) return Number(m[1]);
+        }
+        return null;
+      }
+      function send(kind, message, line) {
+        try {
+          parent.postMessage({ source: "sketch", kind: kind, message: String(message), line: line }, "*");
+        } catch (e) {}
+      }
+      function text(args) {
+        return Array.prototype.map.call(args, function (a) {
+          return typeof a === "string" ? a : (a && a.message) || String(a);
+        }).join(" ").replace(/%c/g, "");
+      }
+      window.addEventListener("error", function (e) {
+        const line = /srcdoc/.test(e.filename || "") ? e.lineno : lineFrom(e.error && e.error.stack);
+        send("error", e.message, line);
+      });
+      window.addEventListener("unhandledrejection", function (e) {
+        const r = e.reason;
+        send("error", (r && r.message) || r, lineFrom(r && r.stack));
+      });
+      ["error", "warn", "log"].forEach(function (method) {
+        const original = console[method];
+        console[method] = function () {
+          const msg = text(arguments);
+          if (method !== "log" || msg.indexOf("p5.js says") !== -1) {
+            send(method === "log" ? "p5" : method, msg, lineFrom(new Error().stack, 1));
+          }
+          return original.apply(console, arguments);
+        };
+      });
+    }
+
     // A minimal page that runs sketch code with the vendored p5, for an
-    // IFrame's srcdoc. "</script" in the code is escaped so it can't end
-    // the script tag early.
+    // IFrame's srcdoc. Everything before the sketch is on line 1 and the
+    // sketch starts right after <script>, so reported line numbers match
+    // the editor's. "</script" in the code is escaped so it can't end the
+    // tag early. The trailing run counter makes every Run a new srcdoc,
+    // so unchanged code re-runs too.
+    let runCount = 0;
     function buildDoc(code) {
       const safe = String(code ?? "").replace(/<\/script/gi, "<\\/script");
+      const capture = "(" + sketchErrorCapture.toString().replace(/\n/g, " ") + ")();";
+      runCount += 1;
       return '<!doctype html><html><head><meta charset="utf-8">' +
         '<style>body{margin:0;overflow:hidden}</style>' +
+        '<script>' + capture + '</' + 'script>' +
         '<script src="/vendor/p5.js"></' + 'script></head><body>' +
-        '<script>' + safe + '</' + 'script></body></html>';
+        '<script>' + safe + '\n</' + 'script></body></html>' +
+        '<!-- run ' + runCount + ' -->';
     }
   </script>
   <script src="/__vendor/xmlui-standalone.umd.js"></script>
