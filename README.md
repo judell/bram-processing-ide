@@ -21,15 +21,19 @@ the menu without a reload.
 
 ## The sketch helper
 
-`sketches/<name>.js` is the single copy of each sketch. Start the helper
-from the repo root so editor edits save to it, outside changes (the
-agent's) appear in the editor, and the menu learns about new sketches:
+`sketches/<name>.js` is the single copy of each sketch. The helper
+(`tools/sketch_server.py`) saves editor edits to it, shows outside changes
+(the agent's) in the editor, and tells the menu about new sketches.
+
+Bram starts it at each launch by running `start.sh` (from `.bram.json`'s
+`launch.run`; Bram asks once before running it on a computer). By hand:
 
 ```
-python3 tools/sketch_server.py
+./start.sh            # start it, or say it's already running
+./start.sh --restart  # restart it, e.g. after editing sketch_server.py
 ```
 
-It uses only the Python standard library, listens on
+It runs detached and logs to `sketch_server.log`. It uses only the Python standard library, listens on
 `http://127.0.0.1:55399` (`PORT=` to change), and accepts requests only
 from loopback pages. Without it, edits still run but aren't saved; the
 header says so.
