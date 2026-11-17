@@ -1,5 +1,5 @@
 {
-  "launch": { "openApp": "/", "run": "./start.sh" },
+  "launch": { "openApp": "/", "run": "./start.sh", "stop": "./start.sh --stop" },
   "prompts": {
     "new-sketch": { "file": "prompts/new-sketch.md" }
   }

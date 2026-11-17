@@ -31,7 +31,11 @@ Bram starts it at each launch by running `start.sh` (from `.bram.json`'s
 ```
 ./start.sh            # start it, or say it's already running
 ./start.sh --restart  # restart it, e.g. after editing sketch_server.py
+./start.sh --stop     # stop it
 ```
+
+Bram runs `./start.sh --stop` (`launch.stop`) when you turn off the launch
+switch in Settings → Companion App. Quitting Bram leaves the helper running.
 
 It runs detached and logs to `sketch_server.log`. It uses only the Python standard library, listens on
 `http://127.0.0.1:55399` (`PORT=` to change), and accepts requests only

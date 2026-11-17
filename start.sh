@@ -9,6 +9,8 @@
 #   ./start.sh            start it, or say it's running (and whether it's
 #                         running code older than the file on disk)
 #   ./start.sh --restart  stop it and start it again
+#   ./start.sh --stop     stop it; Bram runs this (.bram.json "launch.stop")
+#                         when you turn the launch switch off in Settings
 #
 # The port is fixed at 55399 because index.html has it hardcoded. Only this
 # checkout's sketch_server.py is ever stopped. Modeled on bram-studio's
@@ -59,7 +61,29 @@ start() {
   return 1
 }
 
+stop() {
+  kill "$1"
+  i=0
+  while [ -n "$(listener)" ] && [ $i -lt 40 ]; do sleep 0.25; i=$((i + 1)); done
+  [ -z "$(listener)" ]
+}
+
 pid=$(listener)
+
+if [ "$1" = "--stop" ]; then
+  if [ -z "$pid" ]; then
+    echo "The sketch helper isn't running."
+  elif ! ours "$pid"; then
+    echo "Port $PORT is held by something else (PID $pid), not this checkout's helper; leaving it alone."
+  elif stop "$pid"; then
+    echo "Stopped the sketch helper (PID $pid)."
+  else
+    echo "The sketch helper (PID $pid) didn't stop within 10 s." >&2
+    exit 1
+  fi
+  exit 0
+fi
+
 if [ -z "$pid" ]; then
   start; exit $?
 fi
@@ -79,10 +103,7 @@ if [ "$1" != "--restart" ]; then
   exit 0
 fi
 
-kill "$pid"
-i=0
-while [ -n "$(listener)" ] && [ $i -lt 40 ]; do sleep 0.25; i=$((i + 1)); done
-if [ -n "$(listener)" ]; then
+if ! stop "$pid"; then
   echo "The old helper (PID $pid) didn't stop; not starting another." >&2
   exit 1
 fi
